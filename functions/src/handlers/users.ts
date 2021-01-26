@@ -1,6 +1,12 @@
-import { db } from '../util/admin'
+import BusBoy from 'busboy'
+import path from 'path'
+import os from 'os'
+import fs from 'fs'
+
+import { admin, db } from '../util/admin'
 import firebase from 'firebase'
 import config from '../util/config'
+
 
 firebase.initializeApp( config.firebase )
 
@@ -23,11 +29,13 @@ export const signup = async ( req : any, res : any ) => {
       const data = await firebase.auth().createUserWithEmailAndPassword( newUser.email, newUser.password )
       userId = data.user?.uid!
       token = await data.user?.getIdToken()
+      const imageUrl = `https://identicon-api.herokuapp.com/${newUser.userHandle}/80?format=(svg)` // jdenticon library
       const userCredentials = {
         userHandle : newUser.userHandle,
         email : newUser.email,
         createdAt : new Date().toISOString(),
-        userId
+        userId,
+        imageUrl
       }
       await db.doc( `/users/${newUser.userHandle}` ).set( userCredentials )
       return res.status( 201 ).json( { token } )
@@ -58,4 +66,44 @@ export const login = async ( req : any, res : any ) => {
     }
     return res.status( 500 ).json( { error : err.code } )
   }
+}
+
+export const uploadUserImage = async ( req : any, res : any ) => {
+  const busboy = new BusBoy( { headers : req.headers } )
+  let imageFileName = ''
+  let imageToBeUploaded = {
+    imageFilePath : '',
+    mimetype : ''
+  }
+
+  busboy.on( 'file', ( fieldname : any, file : any, filename : any, encoding : any, mimetype : any ) => {
+    const imageExtension = filename.split( '.' )[filename.split( '.' ).length - 1]
+    imageFileName = `${Math.round( Math.random()*1000000000 )}.${imageExtension}`
+    const imageFilePath = path.join( os.tmpdir(), imageFileName )
+    imageToBeUploaded = { imageFilePath, mimetype }
+    file.pipe( fs.createWriteStream( imageFilePath ) )
+  } )
+
+  busboy.on( 'finish', async () => {
+    try {
+      await admin.storage().bucket().upload( imageToBeUploaded.imageFilePath, {
+        resumable : false,
+        metadata : {
+          metadata : {
+            contentType : imageToBeUploaded.mimetype
+          }
+        }
+      } )
+
+      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.firebase.storageBucket}/o/${imageFileName}?alt=media`
+      await db.doc(`/users/${req.user.handle}`).update( { imageUrl } )
+
+      return res.status( 201 ).json( { message : 'Image uploaded successfully' } )
+    } catch ( err ) {
+      console.error( err )
+      return res.status( 500 ).json( { error : err.code } )
+    }
+  })
+
+  busboy.end( req.rawBody )
 }
