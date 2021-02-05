@@ -24,7 +24,18 @@ export const validateLogin = [
   ( req : any, res : any, next : any ) => {
     const errors : any = validationResult( req )
     if ( !errors.isEmpty() ) {
-      return res.status(422).json( { errors : errors.array() } )
+      return res.status( 422 ).json( { errors : errors.array() } )
+    }
+    return next()
+  }
+]
+
+export const validateComment = [
+  body( 'body' ).trim().not().isEmpty(),
+  ( req : any, res : any, next : any ) => {
+    const errors : any = validationResult( req )
+    if ( !errors.isEmpty() ) {
+      return res.status( 422 ).json( { errors : errors.array() } )
     }
     return next()
   }

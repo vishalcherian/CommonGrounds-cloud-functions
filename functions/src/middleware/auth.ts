@@ -14,7 +14,7 @@ export const FBAuth = async ( req : any, res : any, next : any ) => {
     req.user = decodedToken
     const data = await db.collection( 'users' ).where( 'userId', '==', req.user.uid ).limit( 1 ).get()
     req.user.handle = data.docs[0].data().userHandle
-    console.log( req.user.handle )
+    req.user.imageUrl = data.docs[0].data().imageUrl || ''
     return next()
   } catch ( err ) {
     console.error( 'Error while verifying token:', err )

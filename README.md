@@ -14,3 +14,8 @@
 
 ## Timestamp
 
+### 3:04:24 - What's Next
+
+- liking/unliking a post
+- distributed counters for incrementing values at scale
+

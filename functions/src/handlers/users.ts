@@ -10,6 +10,11 @@ import config from '../util/config'
 
 firebase.initializeApp( config.firebase )
 
+interface UserData {
+  credentials : any
+  cheers : any[]
+}
+
 export const signup = async ( req : any, res : any ) => {
   const newUser = {
     email : req.body.email,
@@ -68,6 +73,36 @@ export const login = async ( req : any, res : any ) => {
   }
 }
 
+export const getAuthUser = async ( req : any, res : any ) => {
+  const userData : UserData = { credentials : '', cheers : [] }
+  try {
+    const userDoc = await db.doc( `/users/${req.user.handle}` ).get()
+    if ( !userDoc.exists ) {
+      return res.status( 500 ).json( { message : 'no such user' } )
+    }
+    userData.credentials = userDoc.data()
+    const userCheers = await db.collection( 'cheers' ).where( 'userHandle', '==', req.user.handle ).get()
+    userCheers.forEach( cheer => {
+      userData.cheers.push( cheer.data() )
+    } )
+    return res.json( userData )
+  } catch ( err ) {
+    console.error( err )
+    res.status( 500 ).json( { message : err.code } )
+  }
+}
+
+export const addUserDetails = async ( req : any, res : any ) => {
+  // TODO
+  try {
+    await db.doc( `/users/${req.user.handle}` ).update( req.body )
+    return res.status( 200 ).json( { message : `${req.user.handle} successfully updated` } )
+  } catch ( err ) {
+    console.error( err )
+    return res.status( 500 ).json( { message : err.code } )
+  }
+}
+
 export const uploadUserImage = async ( req : any, res : any ) => {
   const busboy = new BusBoy( { headers : req.headers } )
   let imageFileName = ''
@@ -77,6 +112,9 @@ export const uploadUserImage = async ( req : any, res : any ) => {
   }
 
   busboy.on( 'file', ( fieldname : any, file : any, filename : any, encoding : any, mimetype : any ) => {
+    if ( mimetype !== 'image/jpeg' && mimetype !== 'image/png' && mimetype !== 'image/svg') {
+      return res.status( 400 ).json( { message : 'Wrong filetype given' } )
+    }
     const imageExtension = filename.split( '.' )[filename.split( '.' ).length - 1]
     imageFileName = `${Math.round( Math.random()*1000000000 )}.${imageExtension}`
     const imageFilePath = path.join( os.tmpdir(), imageFileName )

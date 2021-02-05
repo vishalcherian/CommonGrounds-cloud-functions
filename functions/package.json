@@ -17,6 +17,7 @@
     "@types/firebase": "^3.2.1",
     "@types/node": "^14.14.22",
     "busboy": "^0.3.1",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "express-validator": "^6.9.2",
     "firebase": "^8.2.4",
