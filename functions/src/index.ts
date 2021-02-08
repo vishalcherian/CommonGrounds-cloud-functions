@@ -10,7 +10,10 @@ import {
   getAllScreams,
   createScream,
   getScream,
-  newComment
+  newComment,
+  addCheer,
+  removeCheer,
+  getCheersCount
 } from './handlers/screams'
 
 import {
@@ -28,6 +31,9 @@ app.get( '/screams', FBAuth, getAllScreams )
 app.post( '/scream', FBAuth, createScream )
 app.get( '/scream/:screamId', FBAuth, getScream )
 app.post( '/scream/:screamId/comment', FBAuth, validateComment, newComment )
+app.post( '/scream/:screamId/addCheer', FBAuth, addCheer )
+app.post( '/scream/:screamId/removeCheer/:cheerId', FBAuth, removeCheer )
+app.get( '/scream/:screamId/cheers/count', FBAuth, getCheersCount )
 
 // Signup / Login Routes
 app.post( '/signup', validateNewUser, signup )

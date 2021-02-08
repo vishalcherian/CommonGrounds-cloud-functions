@@ -1,4 +1,6 @@
 import { db, admin } from '../util/admin'
+import Constants from '../util/constants'
+import { getCount, updateCounter } from '../util/common'
 
 interface Scream {
   userHandle : string,
@@ -8,6 +10,11 @@ interface Scream {
   createdOn : firebase.default.firestore.Timestamp,
   likeCount : Number,
   commentCount : Number
+}
+
+interface Cheer {
+  userHandle : string,
+  postId : string
 }
 
 export const getAllScreams = ( req : any, res : any ) => {
@@ -95,30 +102,51 @@ export const newComment = async ( req : any, res : any ) => {
   }
 }
 
-// const incrementCounter = ( docRef, numShards ) => {
-//   const shardId = Math.floor( Math.random() * numShards )
-//   const shardRef = docRef.collection( 'shards' ).doc( shardId.toString() )
-//   return shardRef.set( { likeCount : admin.firestore.FieldValue.increment(1) }, { merge : true } )
-// }
+export const addCheer = async ( req : any, res : any ) => {
+  const { screamId } = req.params
+  try {
+    const screamDoc = await db.doc( `screams/${screamId}` ).get()
+    if ( !screamDoc.exists ) {
+      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    }
+    await updateCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
 
-// const getCount = async (docRef) => {
-//   const querySnapshot = await docRef.collection('shards').get()
-//   const documents = querySnapshot.docs
+    const cheer : Cheer = {
+      userHandle : req.user.handle,
+      postId : screamId
+    }
 
-//   let count = 0
-//   for (const doc of documents) {
-//     count += doc.get('count')
-//   }
-//   return count
-// }
+    const cheerDoc = await db.collection( 'cheers' ).add( cheer )
+    return res.status( 200 ).json( { message : 'successfully cheered a post!', cheerId : cheerDoc.id } )
+  } catch ( err ) {
+    console.error( err )
+    return req.status( 500 ).json( { error : err.code } )
+  }
+}
 
-// export const likePost = async ( req : any, res : any ) => {
-//   try {
-//     const screamDoc = await db.doc( `screams/${req.body.screamId}`).update( {
-//       likeCount : admin.firestore.FieldValue.increment(1)
-//     } )
-//   } catch( err ) {
-//     console.error( err )
-//     res.status( 500 ).json( { error : err.code } )
-//   }
-// }
+export const removeCheer = async ( req : any, res : any ) => {
+  const { screamId, cheerId } = req.params
+  try {
+    const screamDoc = await db.doc( `screams/${screamId}` ).get()
+    if ( !screamDoc.exists ) {
+      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    }
+    await updateCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
+    await db.doc( `cheers/${cheerId}` ).delete()
+    return res.status( 200 ).json( { message : 'successfully removed a cheer from a post!' } )
+  } catch ( err ) {
+    console.error( err )
+    return req.status( 500 ).json( { error : err.code } )
+  }
+}
+
+export const getCheersCount = async ( req : any, res : any ) => {
+  const { screamId } = req.params
+  try {
+    const count = await getCount( 'cheers', screamId )
+    return res.status( 200 ).json( { count } )
+  } catch ( err ) {
+    console.error( err )
+    return res.status( 500 ).json( { error : err.code } )
+  }
+}

@@ -17,5 +17,6 @@
 ### 3:04:24 - What's Next
 
 - liking/unliking a post
-- distributed counters for incrementing values at scale
+- ~~distributed counters for incrementing values at scale~~ decrement without going negative
+  - go through shards until you find a non zero one, then decrement that
 
