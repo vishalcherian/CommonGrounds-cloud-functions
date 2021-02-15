@@ -1,6 +1,6 @@
 import { db, admin } from '../util/admin'
 import Constants from '../util/constants'
-import { getCount, updateCounter } from '../util/common'
+import { getCount, incrementCounter, decrementCounter } from '../util/common'
 
 interface Scream {
   userHandle : string,
@@ -109,7 +109,7 @@ export const addCheer = async ( req : any, res : any ) => {
     if ( !screamDoc.exists ) {
       return res.json( 404 ).json( { error : 'scream does not exist' } )
     }
-    await updateCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
+    await incrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
 
     const cheer : Cheer = {
       userHandle : req.user.handle,
@@ -131,8 +131,8 @@ export const removeCheer = async ( req : any, res : any ) => {
     if ( !screamDoc.exists ) {
       return res.json( 404 ).json( { error : 'scream does not exist' } )
     }
-    await updateCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
-    await db.doc( `cheers/${cheerId}` ).delete()
+    await db.doc( `cheers/${cheerId}` ).delete( { exists : true } )
+    await decrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
     return res.status( 200 ).json( { message : 'successfully removed a cheer from a post!' } )
   } catch ( err ) {
     console.error( err )
