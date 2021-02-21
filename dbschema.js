@@ -7,6 +7,16 @@ let db = {
             likeCount: 5,
             commentCount: 2
         }
+    ],
+    notifications : [
+        {
+            recipien : 'user',
+            sender : 'vishal',
+            read : 'true | false',
+            screamId : 'L0ng5tR1nG0fCh@rs',
+            type : 'cheer | comment',
+            createdAt : '<Timestamp>'
+        }
     ]
 }
 
