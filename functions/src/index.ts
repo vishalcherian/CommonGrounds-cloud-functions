@@ -9,8 +9,10 @@ import { FBAuth } from './middleware/auth'
 import {
   getAllScreams,
   createScream,
+  removeScream,
   getScream,
   newComment,
+  removeComment,
   addCheer,
   removeCheer,
   getCheersCount
@@ -30,7 +32,9 @@ const app = express()
 app.get( '/screams', FBAuth, getAllScreams )
 app.post( '/scream', FBAuth, createScream )
 app.get( '/scream/:screamId', FBAuth, getScream )
+app.delete( '/scream/:screamId', FBAuth, removeScream )
 app.post( '/scream/:screamId/comment', FBAuth, validateComment, newComment )
+app.delete( '/scream/:screamId/comment/:commentId', FBAuth, removeComment )
 app.post( '/scream/:screamId/addCheer', FBAuth, addCheer )
 app.post( '/scream/:screamId/removeCheer/:cheerId', FBAuth, removeCheer )
 app.get( '/scream/:screamId/cheers/count', FBAuth, getCheersCount )

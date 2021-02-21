@@ -1,6 +1,7 @@
 import { db, admin } from '../util/admin'
 import Constants from '../util/constants'
 import { getCount, incrementCounter, decrementCounter } from '../util/common'
+import { firestore } from 'firebase-admin'
 
 interface Scream {
   userHandle : string,
@@ -56,6 +57,25 @@ export const createScream = ( req : any, res : any ) => {
     } )
 }
 
+export const removeScream = async ( req : any, res : any ) => {
+  const { screamId } = req.params
+  try {
+    const scream = await db.doc( `screams/${screamId}` )
+    const screamDoc = await scream.get()
+    if ( !screamDoc.exists ) {
+      return res.status( 404 ).json( { error : 'scream does not exist' } )
+    }
+    if ( screamDoc.data()?.userHandle !== req.user.handle ) {
+      return res.status( 403 ).json( { error : 'user is not authorized to delete this post' } )
+    }
+    await scream.delete()
+    return res.status( 200 ).json( { message : 'post successfully deleted' } )
+  } catch ( err ) {
+    console.error( err )
+    res.status( 500 ).json( { error : err.code } )
+  }
+}
+
 export const getScream = async ( req : any, res : any ) => {
   let screamData : any = null
   try {
@@ -95,7 +115,28 @@ export const newComment = async ( req : any, res : any ) => {
       return res.json( 404 ).json( { error : 'scream does not exist' } )
     }
     const commentRef = await db.collection( 'comments' ).add( comment )
+    await db.doc( `screams/${req.params.screamId}` ).update( { commentCount : firestore.FieldValue.increment( 1 ) } )
     return res.status( 200 ).json( { message : `comment ${commentRef.id} posted` } )
+  } catch ( err ) {
+    console.error( err )
+    res.status( 500 ).json( { error : err.code } )
+  }
+}
+
+export const removeComment = async ( req : any, res : any ) => {
+  try {
+    const { screamId, commentId } = req.params
+    const screamDoc = await db.doc( `screams/${screamId}` ).get()
+    if ( !screamDoc.exists ) {
+      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    }
+    const commentDoc = await db.doc( `comments/${commentId}` ).get()
+    if ( !commentDoc.exists ) {
+      return res.json( 404 ).json( { error : 'comment does not exist' } )
+    }
+    await db.doc( `comments/${commentId}` ).delete()
+    await db.doc( `screams/${screamId}` ).update( { commentCount : firestore.FieldValue.increment( -1 ) } )
+    return res.status( 200 ).json( { message : `comment ${commentId} successfully deleted` } )
   } catch ( err ) {
     console.error( err )
     res.status( 500 ).json( { error : err.code } )
@@ -109,6 +150,16 @@ export const addCheer = async ( req : any, res : any ) => {
     if ( !screamDoc.exists ) {
       return res.json( 404 ).json( { error : 'scream does not exist' } )
     }
+
+    const cheerCheckDoc = await db.collection( 'cheers' )
+      .where( 'postId', '==', screamDoc.id )
+      .where( 'userHandle', '==', req.user.handle )
+      .get()
+
+    if ( !cheerCheckDoc.empty ) {
+      return res.status( 409 ).json( { error : 'scream already cheered' } )
+    }
+
     await incrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
 
     const cheer : Cheer = {
@@ -131,7 +182,7 @@ export const removeCheer = async ( req : any, res : any ) => {
     if ( !screamDoc.exists ) {
       return res.json( 404 ).json( { error : 'scream does not exist' } )
     }
-    await db.doc( `cheers/${cheerId}` ).delete( { exists : true } )
+    await db.doc( `cheers/${cheerId}` ).delete()
     await decrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
     return res.status( 200 ).json( { message : 'successfully removed a cheer from a post!' } )
   } catch ( err ) {
