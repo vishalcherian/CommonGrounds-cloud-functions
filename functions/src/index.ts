@@ -17,7 +17,6 @@ import {
   removeCheer,
   getCheersCount
 } from './handlers/screams'
-
 import {
   signup,
   login,
@@ -49,26 +48,31 @@ app.get( '/user', FBAuth, getAuthUser )
 
 exports.api = functions.https.onRequest( app )
 
-exports.createNotificationOnLike = functions.region( 'us-east1' ).firestore.document( 'cheers/{id}' )
+exports.createNotificationOnCheer = functions.region( 'us-central1' ).firestore.document( 'cheers/{id}' )
   .onCreate( async snapshot => {
     try {
-      const screamDoc = await db.doc( `/screams/${snapshot.data().screamId}` ).get()
+      snapshot
+      const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
+      console.log( 'before the if statement')
       if ( screamDoc.exists ) {
-        db.doc( `/notifications/${snapshot.id}` ).set( {
+        console.log( 'in the if statement')
+        return db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
           recipient : screamDoc.data()?.userHandle,
           sender : snapshot.data().userHandle,
           type : 'cheer',
           read : false,
-          screamId : screamDoc.id
+          postId : screamDoc.id
         } )
       }
+      return
     } catch ( err ) {
       console.error( err )
+      return
     }
   } )
 
-exports.deleteNotificationOnUnlike = functions.region( 'us-east1' ).firestore.document( 'cheers/{id}' )
+exports.deleteNotificationOnRemoveCheer = functions.region( 'us-central1' ).firestore.document( 'cheers/{id}' )
   .onDelete( async snapshot => {
     try {
       await db.doc( `/notifications/${snapshot.id}` ).delete()
@@ -77,10 +81,10 @@ exports.deleteNotificationOnUnlike = functions.region( 'us-east1' ).firestore.do
     }
   } )
 
-exports.createNotificationOnComment = functions.region( 'us-east1' ).firestore.document( 'comments/{id}' )
+exports.createNotificationOnComment = functions.region( 'us-central1' ).firestore.document( 'comments/{id}' )
   .onCreate( async snapshot => {
     try {
-      const screamDoc = await db.doc( `/screams/${snapshot.data().screamId}` ).get()
+      const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
       if ( screamDoc.exists ) {
         db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
@@ -91,6 +95,15 @@ exports.createNotificationOnComment = functions.region( 'us-east1' ).firestore.d
           screamId : screamDoc.id
         } )
       }
+    } catch ( err ) {
+      console.error( err )
+    }
+  } )
+
+exports.deleteNotificationOnDeleteComment = functions.region( 'us-central1' ).firestore.document( 'comments/{id}' )
+  .onDelete( async snapshot => {
+    try {
+      await db.doc( `/notifications/${snapshot.id}` ).delete()
     } catch ( err ) {
       console.error( err )
     }
