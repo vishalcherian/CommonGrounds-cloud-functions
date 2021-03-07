@@ -10,9 +10,25 @@ import config from '../util/config'
 
 firebase.initializeApp( config.firebase )
 
-interface UserData {
+// interface Notification {
+//   recipient : string,
+//   sender : string,
+//   createdAt : Date,
+//   postId : string,
+//   type : string,
+//   read : boolean,
+//   notificationId : string
+// }
+
+interface OwnUserData {
   credentials : any
   cheers : any[]
+  notifications : any[]
+}
+
+interface OtherUserData {
+  user : any,
+  posts : any
 }
 
 export const signup = async ( req : any, res : any ) => {
@@ -74,7 +90,7 @@ export const login = async ( req : any, res : any ) => {
 }
 
 export const getAuthUser = async ( req : any, res : any ) => {
-  const userData : UserData = { credentials : '', cheers : [] }
+  const userData : OwnUserData = { credentials : '', cheers : [], notifications : [] }
   try {
     const userDoc = await db.doc( `/users/${req.user.handle}` ).get()
     if ( !userDoc.exists ) {
@@ -85,6 +101,19 @@ export const getAuthUser = async ( req : any, res : any ) => {
     userCheers.forEach( cheer => {
       userData.cheers.push( cheer.data() )
     } )
+    // return res.json( userData )
+    const userNotifications = await db.collection( 'notifications' )
+      .where( 'userHandle', '==', req.user.handle )
+      .orderBy( 'createdAt', 'desc' )
+      .get()
+
+    userNotifications.forEach( notif => {
+      userData.notifications.push( {
+        ...notif.data(),
+        notificationId : notif.id
+      } )
+    } )
+
     return res.json( userData )
   } catch ( err ) {
     console.error( err )
@@ -133,6 +162,7 @@ export const uploadUserImage = async ( req : any, res : any ) => {
         }
       } )
 
+      // eslint-disable-next-line max-len
       const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.firebase.storageBucket}/o/${imageFileName}?alt=media`
       await db.doc(`/users/${req.user.handle}`).update( { imageUrl } )
 
@@ -144,4 +174,44 @@ export const uploadUserImage = async ( req : any, res : any ) => {
   })
 
   busboy.end( req.rawBody )
+}
+
+export const getUserDetails = async ( req : any, res : any ) => {
+  const userData : OtherUserData = { user : '', posts : [] }
+  const { handle } = req.params
+  try {
+    const userDoc = await db.doc( `users/${handle}` ).get()
+    if ( !userDoc.exists ) {
+      return res.status( 404 ).json( { error : 'user does not exist' } )
+    }
+    userData.user = userDoc.data()
+    const posts = await db.collection( 'screams' )
+      .where( 'userHandle', '==', req.params.handle )
+      .orderBy( 'createdAt', 'desc')
+      .get()
+    posts.forEach( post => {
+      userData.posts.push( {
+        ...post.data(),
+        postId : post.id
+      } )
+    } )
+    return res.status( 200 ).json( userData )
+  } catch ( err ) {
+    console.error( err )
+  }
+}
+
+export const markNotificationsRead = async ( req : any, res : any ) => {
+  try {
+    const batch = db.batch()
+    req.body.forEach( ( notifId : any ) => {
+      const notification = db.doc( `/notifications/${notifId}` )
+      batch.update( notification, { read : true } )
+    } )
+    await batch.commit()
+    return res.status( 200 ).json( { message : 'marked notifications read' } )
+  } catch ( err ) {
+    console.error( err )
+    res.status( 500 ).json( { error : err.code } )
+  }
 }

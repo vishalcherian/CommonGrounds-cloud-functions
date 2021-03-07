@@ -22,7 +22,9 @@ import {
   login,
   uploadUserImage,
   addUserDetails,
-  getAuthUser
+  getAuthUser,
+  getUserDetails,
+  markNotificationsRead
 } from './handlers/users'
 import { db } from './util/admin'
 
@@ -33,10 +35,10 @@ app.get( '/screams', FBAuth, getAllScreams )
 app.post( '/scream', FBAuth, createScream )
 app.get( '/scream/:screamId', FBAuth, getScream )
 app.delete( '/scream/:screamId', FBAuth, removeScream )
-app.post( '/scream/:screamId/comment', FBAuth, validateComment, newComment )
-app.delete( '/scream/:screamId/comment/:commentId', FBAuth, removeComment )
+app.post( '/scream/:postId/comment', FBAuth, validateComment, newComment )
+app.delete( '/scream/:postId/comment/:commentId', FBAuth, removeComment )
 app.post( '/scream/:screamId/addCheer', FBAuth, addCheer )
-app.post( '/scream/:screamId/removeCheer/:cheerId', FBAuth, removeCheer )
+app.post( '/scream/:screamId/removeCheer', FBAuth, removeCheer )
 app.get( '/scream/:screamId/cheers/count', FBAuth, getCheersCount )
 
 // Signup / Login Routes
@@ -45,17 +47,16 @@ app.post( '/login', validateLogin, login )
 app.post( '/user/image', FBAuth, uploadUserImage )
 app.post( '/user', FBAuth, addUserDetails )
 app.get( '/user', FBAuth, getAuthUser )
+app.get( '/user/:handle', getUserDetails )
+app.post( '/user/notifications', FBAuth, markNotificationsRead )
 
 exports.api = functions.https.onRequest( app )
 
 exports.createNotificationOnCheer = functions.region( 'us-central1' ).firestore.document( 'cheers/{id}' )
   .onCreate( async snapshot => {
     try {
-      snapshot
       const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
-      console.log( 'before the if statement')
       if ( screamDoc.exists ) {
-        console.log( 'in the if statement')
         return db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
           recipient : screamDoc.data()?.userHandle,
@@ -86,17 +87,19 @@ exports.createNotificationOnComment = functions.region( 'us-central1' ).firestor
     try {
       const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
       if ( screamDoc.exists ) {
-        db.doc( `/notifications/${snapshot.id}` ).set( {
+        return db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
           recipient : screamDoc.data()?.userHandle,
           sender : snapshot.data().userHandle,
           type : 'comment',
           read : false,
-          screamId : screamDoc.id
+          postId : screamDoc.id
         } )
       }
+      return
     } catch ( err ) {
       console.error( err )
+      return
     }
   } )
 
