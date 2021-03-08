@@ -141,13 +141,13 @@ exports.onScreamDelete = functions.region( 'us-central1' ).firestore.document( '
       // delete all relevant comments
       const batch = db.batch()
       const comments = await db.collection( 'comments' )
-        .where( 'screamId', '==', snapshot.id )
+        .where( 'postId', '==', snapshot.id )
         .get()
       comments.forEach( comment => {
         batch.delete( db.doc( `comments/${comment.id}` ) )
       } )
       const cheers = await db.collection( 'cheers' )
-        .where( 'screamId', '==', snapshot.id )
+        .where( 'postId', '==', snapshot.id )
         .get()
       cheers.forEach( cheer => {
         batch.delete( db.doc( `cheers/${cheer.id}` ) )
