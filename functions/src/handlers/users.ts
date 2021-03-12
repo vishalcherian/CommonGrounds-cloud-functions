@@ -185,7 +185,7 @@ export const getUserDetails = async ( req : any, res : any ) => {
       return res.status( 404 ).json( { error : 'user does not exist' } )
     }
     userData.user = userDoc.data()
-    const posts = await db.collection( 'screams' )
+    const posts = await db.collection( 'posts' )
       .where( 'userHandle', '==', req.params.handle )
       .orderBy( 'createdAt', 'desc')
       .get()

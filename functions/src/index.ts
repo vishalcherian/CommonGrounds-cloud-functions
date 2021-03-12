@@ -7,16 +7,16 @@ import { validateNewUser, validateLogin, validateComment } from './middleware/va
 import { FBAuth } from './middleware/auth'
 
 import {
-  getAllScreams,
-  createScream,
-  removeScream,
-  getScream,
+  getAllPosts,
+  createPost,
+  removePost,
+  getPost,
   newComment,
   removeComment,
   addCheer,
   removeCheer,
   getCheersCount
-} from './handlers/screams'
+} from './handlers/posts'
 import {
   signup,
   login,
@@ -30,16 +30,16 @@ import { db } from './util/admin'
 
 const app = express()
 
-// Scream Routes
-app.get( '/screams', FBAuth, getAllScreams )
-app.post( '/scream', FBAuth, createScream )
-app.get( '/scream/:screamId', FBAuth, getScream )
-app.delete( '/scream/:screamId', FBAuth, removeScream )
-app.post( '/scream/:postId/comment', FBAuth, validateComment, newComment )
-app.delete( '/scream/:postId/comment/:commentId', FBAuth, removeComment )
-app.post( '/scream/:screamId/addCheer', FBAuth, addCheer )
-app.post( '/scream/:screamId/removeCheer', FBAuth, removeCheer )
-app.get( '/scream/:screamId/cheers/count', FBAuth, getCheersCount )
+// Post Routes
+app.get( '/posts', FBAuth, getAllPosts )
+app.post( '/post', FBAuth, createPost )
+app.get( '/post/:postId', FBAuth, getPost )
+app.delete( '/post/:postId', FBAuth, removePost )
+app.post( '/post/:postId/comment', FBAuth, validateComment, newComment )
+app.delete( '/post/:postId/comment/:commentId', FBAuth, removeComment )
+app.post( '/post/:postId/addCheer', FBAuth, addCheer )
+app.post( '/post/:postId/removeCheer', FBAuth, removeCheer )
+app.get( '/post/:postId/cheers/count', FBAuth, getCheersCount )
 
 // Signup / Login Routes
 app.post( '/signup', validateNewUser, signup )
@@ -55,15 +55,15 @@ exports.api = functions.https.onRequest( app )
 exports.createNotificationOnCheer = functions.region( 'us-central1' ).firestore.document( 'cheers/{id}' )
   .onCreate( async snapshot => {
     try {
-      const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
-      if ( screamDoc.exists && snapshot.data().userHandle !== screamDoc.data()?.userHandle ) {
+      const postDoc = await db.doc( `/posts/${snapshot.data().postId}` ).get()
+      if ( postDoc.exists && snapshot.data().userHandle !== postDoc.data()?.userHandle ) {
         return db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
-          recipient : screamDoc.data()?.userHandle,
+          recipient : postDoc.data()?.userHandle,
           sender : snapshot.data().userHandle,
           type : 'cheer',
           read : false,
-          postId : screamDoc.id
+          postId : postDoc.id
         } )
       }
       return
@@ -85,15 +85,15 @@ exports.deleteNotificationOnRemoveCheer = functions.region( 'us-central1' ).fire
 exports.createNotificationOnComment = functions.region( 'us-central1' ).firestore.document( 'comments/{id}' )
   .onCreate( async snapshot => {
     try {
-      const screamDoc = await db.doc( `/screams/${snapshot.data().postId}` ).get()
-      if ( screamDoc.exists && snapshot.data().userHandle !== screamDoc.data()?.userHandle ) {
+      const postDoc = await db.doc( `/posts/${snapshot.data().postId}` ).get()
+      if ( postDoc.exists && snapshot.data().userHandle !== postDoc.data()?.userHandle ) {
         return db.doc( `/notifications/${snapshot.id}` ).set( {
           createdAt : new Date().toISOString(),
-          recipient : screamDoc.data()?.userHandle,
+          recipient : postDoc.data()?.userHandle,
           sender : snapshot.data().userHandle,
           type : 'comment',
           read : false,
-          postId : screamDoc.id
+          postId : postDoc.id
         } )
       }
       return
@@ -119,12 +119,12 @@ exports.onUserImageChange = functions.region( 'us-central1' ).firestore.document
       const after = change.after.data()
       if ( before.imageUrl !== after.imageUrl ) {
         const batch = db.batch()
-        const screams = await db.collection( 'screams' )
+        const posts = await db.collection( 'posts' )
           .where( 'userHandle', '==', after.userHandle )
           .get()
-        screams.forEach( doc => {
-          const scream = db.doc( `/screams/${doc.id}` )
-          batch.update( scream, { userImage : after.imageUrl } )
+        posts.forEach( doc => {
+          const post = db.doc( `/posts/${doc.id}` )
+          batch.update( post, { userImage : after.imageUrl } )
         } )
         return batch.commit()
       }
@@ -135,7 +135,7 @@ exports.onUserImageChange = functions.region( 'us-central1' ).firestore.document
     }
   } )
 
-exports.onScreamDelete = functions.region( 'us-central1' ).firestore.document( 'screams/{id}' )
+exports.onPostDelete = functions.region( 'us-central1' ).firestore.document( 'posts/{id}' )
   .onDelete( async snapshot => {
     try {
       // delete all relevant comments

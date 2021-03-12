@@ -1,8 +1,8 @@
 let db = {
-    screams : [
+    posts : [
         {
             userHandle: 'user',
-            body: 'this is the scream body',
+            body: 'this is the post body',
             createdAt: '<Timestamp>',
             likeCount: 5,
             commentCount: 2
@@ -13,7 +13,7 @@ let db = {
             recipien : 'user',
             sender : 'vishal',
             read : 'true | false',
-            screamId : 'L0ng5tR1nG0fCh@rs',
+            postId : 'L0ng5tR1nG0fCh@rs',
             type : 'cheer | comment',
             createdAt : '<Timestamp>'
         }

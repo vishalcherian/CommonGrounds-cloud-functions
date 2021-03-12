@@ -3,7 +3,7 @@ import Constants from '../util/constants'
 import { getCount, incrementCounter, decrementCounter } from '../util/common'
 import { firestore } from 'firebase-admin'
 
-interface Scream {
+interface Post {
   userHandle : string,
   userImage : string,
   title : string;
@@ -18,15 +18,15 @@ interface Cheer {
   postId : string
 }
 
-export const getAllScreams = ( req : any, res : any ) => {
-  db.collection( 'screams' )
+export const getAllPosts = ( req : any, res : any ) => {
+  db.collection( 'posts' )
     .get()
     .then( data => {
-      const screams : any = []
+      const posts : any = []
       data.forEach( doc => {
-        screams.push( { id : doc.id, ...doc.data() } )
+        posts.push( { id : doc.id, ...doc.data() } )
       } )
-      return res.json( screams )
+      return res.json( posts )
     } )
     .catch( err => {
       res.status( 404 ).json( { error : 'Could not find data' } )
@@ -34,8 +34,8 @@ export const getAllScreams = ( req : any, res : any ) => {
     } )
 }
 
-export const createScream = ( req : any, res : any ) => {
-  const newScream : Scream = {
+export const createPost = ( req : any, res : any ) => {
+  const newPost : Post = {
     userHandle : req.user.handle,
     userImage : req.user.imageUrl,
     title : req.body.title || '',
@@ -46,10 +46,10 @@ export const createScream = ( req : any, res : any ) => {
     commentCount : 0
   }
 
-  db.collection( 'screams' )
-    .add( newScream )
+  db.collection( 'posts' )
+    .add( newPost )
     .then( doc => {
-      res.json( { screamId : doc.id, ...newScream } )
+      res.json( { postId : doc.id, ...newPost } )
     } )
     .catch( err => {
       console.error( err )
@@ -57,18 +57,18 @@ export const createScream = ( req : any, res : any ) => {
     } )
 }
 
-export const removeScream = async ( req : any, res : any ) => {
-  const { screamId } = req.params
+export const removePost = async ( req : any, res : any ) => {
+  const { postId } = req.params
   try {
-    const scream = await db.doc( `screams/${screamId}` )
-    const screamDoc = await scream.get()
-    if ( !screamDoc.exists ) {
-      return res.status( 404 ).json( { error : 'scream does not exist' } )
+    const post = await db.doc( `posts/${postId}` )
+    const postDoc = await post.get()
+    if ( !postDoc.exists ) {
+      return res.status( 404 ).json( { error : 'post does not exist' } )
     }
-    if ( screamDoc.data()?.userHandle !== req.user.handle ) {
+    if ( postDoc.data()?.userHandle !== req.user.handle ) {
       return res.status( 403 ).json( { error : 'user is not authorized to delete this post' } )
     }
-    await scream.delete()
+    await post.delete()
     return res.status( 200 ).json( { message : 'post successfully deleted' } )
   } catch ( err ) {
     console.error( err )
@@ -76,25 +76,25 @@ export const removeScream = async ( req : any, res : any ) => {
   }
 }
 
-export const getScream = async ( req : any, res : any ) => {
-  let screamData : any = null
+export const getPost = async ( req : any, res : any ) => {
+  let postData : any = null
   try {
-    console.log( 'in getScream' )
-    const { screamId } = req.params
-    const screamDoc = await db.doc( `/screams/${screamId}`).get()
-    if ( !screamDoc.exists ) {
-      return res.status( 400 ).json( { message : 'could not find scream' } )
+    console.log( 'in getPost' )
+    const { postId } = req.params
+    const postDoc = await db.doc( `/posts/${postId}`).get()
+    if ( !postDoc.exists ) {
+      return res.status( 400 ).json( { message : 'could not find post' } )
     }
-    screamData = screamDoc.data()
-    screamData.screamId = screamId
-    screamData.userHandle = req.user.handle
-    screamData.comments = []
+    postData = postDoc.data()
+    postData.postId = postId
+    postData.userHandle = req.user.handle
+    postData.comments = []
     const commentsCollection = await db.collection( 'comments' )
       .orderBy( 'createdAt', 'desc' )
-      .where( 'screamId', '==', screamId )
+      .where( 'postId', '==', postId )
       .get()
-    commentsCollection.forEach( comment => screamData.comments.push( comment.data() ) )
-    return res.status( 200 ).json( { scream : screamData } )
+    commentsCollection.forEach( comment => postData.comments.push( comment.data() ) )
+    return res.status( 200 ).json( { post : postData } )
   } catch ( err ) {
     console.error( err )
     return res.status( 500 ).json( { error : err.code } )
@@ -110,12 +110,12 @@ export const newComment = async ( req : any, res : any ) => {
     userImage : req.user.imageUrl
   }
   try {
-    const scream = await db.doc( `screams/${req.params.postId}` ).get()
-    if ( !scream.exists ) {
-      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    const post = await db.doc( `posts/${req.params.postId}` ).get()
+    if ( !post.exists ) {
+      return res.json( 404 ).json( { error : 'post does not exist' } )
     }
     const commentRef = await db.collection( 'comments' ).add( comment )
-    await db.doc( `screams/${req.params.postId}` ).update( { commentCount : firestore.FieldValue.increment( 1 ) } )
+    await db.doc( `posts/${req.params.postId}` ).update( { commentCount : firestore.FieldValue.increment( 1 ) } )
     return res.status( 200 ).json( { message : `comment ${commentRef.id} posted` } )
   } catch ( err ) {
     console.error( err )
@@ -126,16 +126,16 @@ export const newComment = async ( req : any, res : any ) => {
 export const removeComment = async ( req : any, res : any ) => {
   try {
     const { postId, commentId } = req.params
-    const screamDoc = await db.doc( `screams/${postId}` ).get()
-    if ( !screamDoc.exists ) {
-      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    const postDoc = await db.doc( `posts/${postId}` ).get()
+    if ( !postDoc.exists ) {
+      return res.json( 404 ).json( { error : 'post does not exist' } )
     }
     const commentDoc = await db.doc( `comments/${commentId}` ).get()
     if ( !commentDoc.exists ) {
       return res.json( 404 ).json( { error : 'comment does not exist' } )
     }
     await db.doc( `comments/${commentId}` ).delete()
-    await db.doc( `screams/${postId}` ).update( { commentCount : firestore.FieldValue.increment( -1 ) } )
+    await db.doc( `posts/${postId}` ).update( { commentCount : firestore.FieldValue.increment( -1 ) } )
     return res.status( 200 ).json( { message : `comment ${commentId} successfully deleted` } )
   } catch ( err ) {
     console.error( err )
@@ -144,27 +144,27 @@ export const removeComment = async ( req : any, res : any ) => {
 }
 
 export const addCheer = async ( req : any, res : any ) => {
-  const { screamId } = req.params
+  const { postId } = req.params
   try {
-    const screamDoc = await db.doc( `screams/${screamId}` ).get()
-    if ( !screamDoc.exists ) {
-      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    const postDoc = await db.doc( `posts/${postId}` ).get()
+    if ( !postDoc.exists ) {
+      return res.json( 404 ).json( { error : 'post does not exist' } )
     }
 
     const cheerCheckDoc = await db.collection( 'cheers' )
-      .where( 'postId', '==', screamDoc.id )
+      .where( 'postId', '==', postDoc.id )
       .where( 'userHandle', '==', req.user.handle )
       .get()
 
     if ( !cheerCheckDoc.empty ) {
-      return res.status( 409 ).json( { error : 'scream already cheered' } )
+      return res.status( 409 ).json( { error : 'post already cheered' } )
     }
 
-    await incrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
+    await incrementCounter( 'cheers', postDoc.id, Constants.CHEERS_SHARD_COUNT, 1 )
 
     const cheer : Cheer = {
       userHandle : req.user.handle,
-      postId : screamId
+      postId : postId
     }
 
     const cheerDoc = await db.collection( 'cheers' ).add( cheer )
@@ -176,14 +176,14 @@ export const addCheer = async ( req : any, res : any ) => {
 }
 
 export const removeCheer = async ( req : any, res : any ) => {
-  const { screamId } = req.params
+  const { postId } = req.params
   try {
-    const screamDoc = await db.doc( `screams/${screamId}` ).get()
-    if ( !screamDoc.exists ) {
-      return res.json( 404 ).json( { error : 'scream does not exist' } )
+    const postDoc = await db.doc( `posts/${postId}` ).get()
+    if ( !postDoc.exists ) {
+      return res.json( 404 ).json( { error : 'post does not exist' } )
     }
     const cheers = await db.collection( 'cheers' )
-      .where( 'postId', '==', screamId )
+      .where( 'postId', '==', postId )
       .where( 'userHandle', '==', req.user.handle )
       .get()
 
@@ -191,7 +191,7 @@ export const removeCheer = async ( req : any, res : any ) => {
       cheer.ref.delete()
     } )
 
-    await decrementCounter( 'cheers', screamDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
+    await decrementCounter( 'cheers', postDoc.id, Constants.CHEERS_SHARD_COUNT, -1 )
     return res.status( 200 ).json( { message : 'successfully removed a cheer from a post!' } )
   } catch ( err ) {
     console.error( err )
@@ -200,9 +200,9 @@ export const removeCheer = async ( req : any, res : any ) => {
 }
 
 export const getCheersCount = async ( req : any, res : any ) => {
-  const { screamId } = req.params
+  const { postId } = req.params
   try {
-    const count = await getCount( 'cheers', screamId )
+    const count = await getCount( 'cheers', postId )
     return res.status( 200 ).json( { count } )
   } catch ( err ) {
     console.error( err )
