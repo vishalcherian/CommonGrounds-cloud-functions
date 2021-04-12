@@ -1,4 +1,6 @@
 import dotenv from 'dotenv'
+import cors from 'cors'
+
 dotenv.config()
 
 import * as functions from 'firebase-functions'
@@ -30,6 +32,8 @@ import { db } from './util/admin'
 
 const app = express()
 
+app.use( cors( { origin : true } ) )
+
 // Post Routes
 app.get( '/posts', FBAuth, getAllPosts )
 app.post( '/post', FBAuth, createPost )
@@ -41,7 +45,7 @@ app.post( '/post/:postId/addCheer', FBAuth, addCheer )
 app.post( '/post/:postId/removeCheer', FBAuth, removeCheer )
 app.get( '/post/:postId/cheers/count', FBAuth, getCheersCount )
 
-// Signup / Login Routes
+// Signup & Login Routes
 app.post( '/signup', validateNewUser, signup )
 app.post( '/login', validateLogin, login )
 app.post( '/user/image', FBAuth, uploadUserImage )
