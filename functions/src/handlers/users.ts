@@ -33,6 +33,8 @@ interface OtherUserData {
 
 export const signup = async ( req : any, res : any ) => {
   const newUser = {
+    firstName : req.body.firstName,
+    lastName : req.body.lastName,
     email : req.body.email,
     password : req.body.password,
     confirmPassword : req.body.confirmPassword,
