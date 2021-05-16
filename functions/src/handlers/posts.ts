@@ -6,7 +6,8 @@ import { firestore } from 'firebase-admin'
 interface Post {
   userHandle : string,
   userImage : string,
-  title : string;
+  name : string;
+  company : string;
   description : string;
   createdOn : firebase.default.firestore.Timestamp,
   likeCount : Number,
@@ -38,7 +39,8 @@ export const createPost = ( req : any, res : any ) => {
   const newPost : Post = {
     userHandle : req.user.handle,
     userImage : req.user.imageUrl,
-    title : req.body.title || '',
+    name : req.body.name || '',
+    company : req.body.company || '',
     description : req.body.description || '',
     // createdOn : fb.default.firestore.Timestamp.fromDate( new Date() ),
     createdOn : admin.firestore.Timestamp.fromDate( new Date() ),
